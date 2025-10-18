@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MC.K Konseyi Başvuru Yeri</title>
-<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 <style>
 body {
   margin: 0;
@@ -115,20 +114,22 @@ h2 {
 </div>
 
 <script>
-// EmailJS ayarları
-emailjs.init("9IrNTaWWfJqPCxE1Qazm0"); // Public Key
-const EMAILJS_SERVICE_ID = "service_e6u4yl9";
-const EMAILJS_TEMPLATE_ID = "template_lf11yoh";
-const MAIL_TO = "angerlord1545@gmail.com";
-
-// Şifreler
-const KURUCU_SIFRE = "Konya15454545";
-const ADMIN_SIFRE = "konsey14531";
+// Şifreler (hashlenmiş)
+const KURUCU_HASH = '95750c1367e03806c2401a3f0956be1ea6a578d84ce5df9789a65ce46d7dd7e8';
+const ADMIN_HASH = 'f89e74acb94d55d4d219a0723c7a04d9baa96056a2acb1693a2b63ca768d8f4b';
 
 // LocalStorage
 let basvurular = JSON.parse(localStorage.getItem('basvurular') || '[]');
 let onaylananlar = JSON.parse(localStorage.getItem('onaylananlar') || '[]');
 let reddedilenler = JSON.parse(localStorage.getItem('reddedilenler') || '[]');
+
+async function sha256Hex(str) {
+  const enc = new TextEncoder();
+  const data = enc.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 function basvuruGonder() {
   const isim = document.getElementById('isim').value.trim();
@@ -142,16 +143,7 @@ function basvuruGonder() {
   basvurular.push(basvuru);
   localStorage.setItem('basvurular', JSON.stringify(basvurular));
 
-  // EmailJS gönderimi
-  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-    isim: isim,
-    nick: nick,
-    yas: yas,
-    neden: neden,
-    tarih: basvuru.tarih,
-    to_email: MAIL_TO
-  }).then(() => { alert("Başvurunuz gönderildi!"); },
-          () => { alert("Başvurunuz kaydedildi ama e-posta gönderilemedi."); });
+  alert("Başvurunuz kaydedildi! Adminler ve kurucu panelden görebilir.");
 
   document.getElementById('isim').value = '';
   document.getElementById('nick').value = '';
@@ -160,14 +152,24 @@ function basvuruGonder() {
   listeleBasvurular();
 }
 
-function girisYap() {
+async function girisYap() {
   const sifre = document.getElementById('adminSifre').value;
-  if (sifre === KURUCU_SIFRE || sifre === ADMIN_SIFRE) {
+  if (!sifre) { alert('Lütfen şifre girin!'); return; }
+
+  const inputHash = await sha256Hex(sifre);
+  if (inputHash === KURUCU_HASH) {
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminLogin').style.display = 'none';
     listeleBasvurular();
-    alert(sifre === KURUCU_SIFRE ? "Kurucu olarak giriş yapıldı." : "Admin olarak giriş yapıldı.");
-  } else { alert("Şifre yanlış!"); }
+    alert('Kurucu olarak giriş yapıldı.');
+  } else if (inputHash === ADMIN_HASH) {
+    document.getElementById('adminPanel').style.display = 'block';
+    document.getElementById('adminLogin').style.display = 'none';
+    listeleBasvurular();
+    alert('Admin olarak giriş yapıldı.');
+  } else {
+    alert('Şifre yanlış!');
+  }
 }
 
 function listeleBasvurular() {
